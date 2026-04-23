@@ -44,6 +44,7 @@ def main():
 
     with open("output.txt", "w") as f:
         f.write(text)
+    print("✅ Done. Output written to output.txt")
 
 if __name__ == "__main__":
     main()
