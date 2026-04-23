@@ -1,83 +1,51 @@
-#!/usr/bin/python 
-import os, sys, string, random
+import os, sys, random
 
-# Markov chain word generator.
-
-# Map each context to {word->frequency}.
-# 'contexts' is a frequency table, populated here.
-# 'words' is an ordered list of words.
-# 'n' is the number of words in each context window.
 def build(contexts, words, n):
-	context = words[:n]
-	for word in words[n:]:
-		key = tuple(context)
-		wordfreq = contexts.get(key, {})
-		wordfreq[word] = wordfreq.get(word, 0) + 1
-		contexts[key] = wordfreq
-		# print(key, word, wordfreq[word])
-		context = context[1:] + [word]
-		
-# Generate semi-random output.
-# Print a random starting point and continue from there.
-# 'starters' is a list of possible starter contexts.
-def generate(f, starters, contexts):
-	context = random.choice(starters)
-	f.write(" ".join(context))
-	while True:
-		key = tuple(context)
-		wordfreq = contexts.get(key, {})
-		if not wordfreq:
-				break
-		word = choose(wordfreq)
-		f.write(" " + word)
-		context = context[1:] + [word]
-	f.write("\n")
+    for i in range(len(words) - n):
+        key = tuple(words[i:i+n])
+        nxt = words[i+n]
+        contexts.setdefault(key, {})
+        contexts[key][nxt] = contexts[key].get(nxt, 0) + 1
 
-# Randomly choose one word from a {word->frequency}
-# dictionary, the choice being weighted by frequency.
 def choose(wordfreq):
-	# Calculate the total instances.
-	total = 0
-	for w,count in wordfreq.items():
-			total += count
-	# Choose a random instance.
-	chosen = random.randint(1,total)
-	# Walk through to find it.
-	sofar = 0
-	for word,count in wordfreq.items():
-		sofar += count
-		if chosen <= sofar:
-			return word
-	assert(0)
+    total = sum(wordfreq.values())
+    r = random.randint(1, total)
+    s = 0
+    for word, count in wordfreq.items():
+        s += count
+        if r <= s:
+            return word
 
-# Generate a semi-random sequence of words that
-# mimic the probabilities of the input text.
+def generate(contexts, starters, n):
+    context = random.choice(starters)
+    output = list(context)
+
+    while tuple(context) in contexts:
+        word = choose(contexts[tuple(context)])
+        output.append(word)
+        context = context[1:] + [word]
+
+    return " ".join(output)
+
 def main():
-	# Initialise.
-	data_dir = "data/"
-	n = 2
-	for arg in sys.argv[1:]:
-		if arg.isnumeric(): n = int(arg)
-		else: data_dir = arg
+    data_dir = sys.argv[1] if len(sys.argv) > 1 else "data/"
+    n = int(sys.argv[2]) if len(sys.argv) > 2 else 2
 
-	# Build the frequency table by reading the input text(s).
-	contexts = {}
-	starters = []
+    contexts, starters = {}, []
 
-	for filename in sorted(os.listdir(data_dir)):
-		print("Reading " + data_dir + filename)
-		f = open(data_dir + filename, encoding="utf-8")
-		words = f.read().split()
-		starters.append(words[:2])
-		build(contexts, words, 2)
+    for file in os.listdir(data_dir):
+        with open(os.path.join(data_dir, file), encoding="utf-8") as f:
+            words = f.read().split()
+            if len(words) < n: continue
+            starters.append(words[:n])
+            build(contexts, words, n)
 
-	# Print words at random, starting at some initial context.
-	out_file = "output.txt"
-	print("Writing " + out_file)
-	f = open(out_file, "w")
-	generate(f, starters, contexts)
-	f.close()
+    text = generate(contexts, starters, n)
 
-if __name__ == '__main__':
-	main()
+    with open("output.txt", "w") as f:
+        f.write(text)
+    print("✅ Done. Output written to output.txt")
+
+if __name__ == "__main__":
+    main()
 
